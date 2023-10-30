@@ -24,8 +24,8 @@ from llava.utils import build_logger, server_error_msg
 
 logger = build_logger("controller", "controller.log")
 
-
-class DispatchMethod(Enum):
+# This is used for system to decide how to allocate or handle tasks, request or resources.
+class DispatchMethod(Enum): # This method can be removed since I will have just one worker 
     LOTTERY = auto()
     SHORTEST_QUEUE = auto()
 
@@ -38,52 +38,52 @@ class DispatchMethod(Enum):
         else:
             raise ValueError(f"Invalid dispatch method")
 
-
+# This calss helps to store and manage information about the worker
 @dataclasses.dataclass
-class WorkerInfo:
+class WorkerInfo: # I will need to reduce this to keep just the attributes that I need
     model_names: List[str]
     speed: int
     queue_length: int
     check_heart_beat: bool
     last_heart_beat: str
 
-
-def heart_beat_controller(controller):
+# this function check if the worker is still active by checking the heart beat
+def heart_beat_controller(controller): # this is not esential but for scalability could be useful
     while True:
         time.sleep(CONTROLLER_HEART_BEAT_EXPIRATION)
         controller.remove_stable_workers_by_expiration()
 
 
 class Controller:
-    def __init__(self, dispatch_method: str):
+    def __init__(self):#, dispatch_method: str):
         # Dict[str -> WorkerInfo]
         self.worker_info = {}
-        self.dispatch_method = DispatchMethod.from_str(dispatch_method)
+        # self.dispatch_method = DispatchMethod.from_str(dispatch_method)
 
-        self.heart_beat_thread = threading.Thread(
-            target=heart_beat_controller, args=(self,))
-        self.heart_beat_thread.start()
+        #self.heart_beat_thread = threading.Thread(
+        #    target=heart_beat_controller, args=(self,))
+        #self.heart_beat_thread.start()
 
         logger.info("Init controller")
 
-    def register_worker(self, worker_name: str, check_heart_beat: bool,
-                        worker_status: dict):
-        if worker_name not in self.worker_info:
-            logger.info(f"Register a new worker: {worker_name}")
-        else:
-            logger.info(f"Register an existing worker: {worker_name}")
-
-        if not worker_status:
-            worker_status = self.get_worker_status(worker_name)
-        if not worker_status:
-            return False
-
-        self.worker_info[worker_name] = WorkerInfo(
-            worker_status["model_names"], worker_status["speed"], worker_status["queue_length"],
-            check_heart_beat, time.time())
-
-        logger.info(f"Register done: {worker_name}, {worker_status}")
-        return True
+    #def register_worker(self, worker_name: str, check_heart_beat: bool,
+    #                    worker_status: dict):
+    #    if worker_name not in self.worker_info:
+    #        logger.info(f"Register a new worker: {worker_name}")
+    #    else:
+    #        logger.info(f"Register an existing worker: {worker_name}")
+#
+    #    if not worker_status:
+    #        worker_status = self.get_worker_status(worker_name)
+    #    if not worker_status:
+    #        return False
+#
+    #    self.worker_info[worker_name] = WorkerInfo(
+    #        worker_status["model_names"], worker_status["speed"], worker_status["queue_length"],
+    #        check_heart_beat, time.time())
+#
+    #    logger.info(f"Register done: {worker_name}, {worker_status}")
+    #    return True
 
     def get_worker_status(self, worker_name: str):
         try:
@@ -98,10 +98,10 @@ class Controller:
 
         return r.json()
 
-    def remove_worker(self, worker_name: str):
+    def remove_worker(self, worker_name: str): ## this method is to remove workers
         del self.worker_info[worker_name]
 
-    def refresh_all_workers(self):
+    def refresh_all_workers(self): # this method is to update workets info
         old_info = dict(self.worker_info)
         self.worker_info = {}
 
@@ -109,15 +109,16 @@ class Controller:
             if not self.register_worker(w_name, w_info.check_heart_beat, None):
                 logger.info(f"Remove stale worker: {w_name}")
 
-    def list_models(self):
+    def list_models(self): # this is useful to list the available models
         model_names = set()
 
         for w_name, w_info in self.worker_info.items():
             model_names.update(w_info.model_names)
 
         return list(model_names)
-
-    def get_worker_address(self, model_name: str):
+    
+#This code will be modified to handle just one worker
+    '''def get_worker_address(self, model_name: str):
         if self.dispatch_method == DispatchMethod.LOTTERY:
             worker_names = []
             worker_speeds = []
@@ -168,7 +169,18 @@ class Controller:
             logger.info(f"names: {worker_names}, queue_lens: {worker_qlen}, ret: {w_name}")
             return w_name
         else:
-            raise ValueError(f"Invalid dispatch method: {self.dispatch_method}")
+            raise ValueError(f"Invalid dispatch method: {self.dispatch_method}") '''
+## New method added to replace the method above
+    def get_worker_address(self, model_name: str):
+        # Assuming there's only one worker
+        worker_name, worker_data = list(self.worker_info.items())[0]
+
+        if model_name in worker_data.model_names:
+            return worker_name
+        else:
+            logger.error(f"No worker found for the model: {model_name}")
+            return ""
+
 
     def receive_heart_beat(self, worker_name: str, queue_length: int):
         if worker_name not in self.worker_info:
@@ -180,7 +192,8 @@ class Controller:
         logger.info(f"Receive heart beat. {worker_name}")
         return True
 
-    def remove_stable_workers_by_expiration(self):
+# Remove this method since I will use one worker only
+    '''def remove_stable_workers_by_expiration(self):
         expire = time.time() - CONTROLLER_HEART_BEAT_EXPIRATION
         to_delete = []
         for worker_name, w_info in self.worker_info.items():
@@ -188,9 +201,9 @@ class Controller:
                 to_delete.append(worker_name)
 
         for worker_name in to_delete:
-            self.remove_worker(worker_name)
-
-    def worker_api_generate_stream(self, params):
+            self.remove_worker(worker_name)'''
+## this generate the response in chuncks since i dont need chunks i will modify the method
+    '''def worker_api_generate_stream(self, params):
         worker_addr = self.get_worker_address(params["model"])
         if not worker_addr:
             logger.info(f"no worker: {params['model']}")
@@ -212,12 +225,36 @@ class Controller:
                 "text": server_error_msg,
                 "error_code": 3,
             }
-            yield json.dumps(ret).encode() + b"\0"
+            yield json.dumps(ret).encode() + b"\0" '''
+    # new method that returns the response complete
+    def worker_api_generate(self, params):
+        worker_addr = self.get_worker_address(params["model"])
+        if not worker_addr:
+            logger.info(f"no worker: {params['model']}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return json.dumps(ret)
+
+        try:
+            response = requests.post(worker_addr + "/worker_generate", ## Check worker.py to modyfy also the chunks part
+                json=params, timeout=5)
+            response.raise_for_status()  # This will raise an error if the response contains an HTTP error status code
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.info(f"worker timeout or error: {worker_addr}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 3,
+            }
+            return json.dumps(ret)
 
 
     # Let the controller act as a worker to achieve hierarchical
     # management. This can be used to connect isolated sub networks.
-    def worker_api_get_status(self):
+    # removed since is not neeeded for my use case
+    '''def worker_api_get_status(self):
         model_names = set()
         speed = 0
         queue_length = 0
@@ -233,7 +270,7 @@ class Controller:
             "model_names": list(model_names),
             "speed": speed,
             "queue_length": queue_length,
-        }
+        }'''
 
 
 app = FastAPI()
@@ -273,19 +310,24 @@ async def receive_heart_beat(request: Request):
     return {"exist": exist}
 
 
-@app.post("/worker_generate_stream")
+'''@app.post("/worker_generate_stream")
 async def worker_api_generate_stream(request: Request):
     params = await request.json()
     generator = controller.worker_api_generate_stream(params)
-    return StreamingResponse(generator)
-
+    return StreamingResponse(generator)'''
+## resplace code above with this
+@app.post("/worker_generate")
+async def worker_api_generate(request: Request):
+    params = await request.json()
+    response = controller.worker_api_generate(params)
+    return response
 
 @app.post("/worker_get_status")
 async def worker_api_get_status(request: Request):
     return controller.worker_api_get_status()
 
 
-if __name__ == "__main__":
+'''if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=21001)
@@ -295,4 +337,15 @@ if __name__ == "__main__":
     logger.info(f"args: {args}")
 
     controller = Controller(args.dispatch_method)
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")'''
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", type=str, default="localhost")
+    parser.add_argument("--port", type=int, default=21001)
+    args = parser.parse_args()
+    logger.info(f"args: {args}")
+
+    controller = Controller()  # Assuming you also updated the Controller's __init__ method
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
