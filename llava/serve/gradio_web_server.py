@@ -243,6 +243,7 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
         response = requests.post(worker_addr + "/worker_generate_stream",
             headers=headers, json=pload, stream=False, timeout=10)  
         if response.status_code == 200:
+            print(response.text)
             data = json.loads(response.text)
             if data["error_code"] == 0:
                 output = data["text"][len(prompt):].strip()
