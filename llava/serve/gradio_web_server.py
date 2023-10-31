@@ -248,17 +248,20 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
                 output = data["text"][len(prompt):].strip()
                 state.messages[-1][-1] = output
                 yield (state, state.to_gradio_chatbot()) + (enable_btn,) * 5  # changed to enable_btn
+                return
             else:
                 output = data["text"] + f" (error_code: {data['error_code']})"
                 state.messages[-1][-1] = output
                 yield (state, state.to_gradio_chatbot()) + (disable_btn, disable_btn, disable_btn, enable_btn, enable_btn)
+                return
         else:
             state.messages[-1][-1] = server_error_msg
             yield (state, state.to_gradio_chatbot()) + (disable_btn, disable_btn, disable_btn, enable_btn, enable_btn)
+            return
     except requests.exceptions.RequestException as e:
         state.messages[-1][-1] = server_error_msg
         yield (state, state.to_gradio_chatbot()) + (disable_btn, disable_btn, disable_btn, enable_btn, enable_btn) 
-
+        return
 '''
     try:
         # Stream output
