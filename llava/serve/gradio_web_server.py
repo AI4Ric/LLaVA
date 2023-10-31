@@ -244,6 +244,7 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
             headers=headers, json=pload, stream=False, timeout=10)
         output = ""
         last_chunk = ""
+        print(response.text)
         for chunk in response.iter_lines(decode_unicode=False, delimiter=b"\0"):
             if chunk:
                 data = json.loads(chunk.decode())
