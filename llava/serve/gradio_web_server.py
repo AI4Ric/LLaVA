@@ -243,6 +243,7 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
         response = requests.post(worker_addr + "/worker_generate_stream",
             headers=headers, json=pload, stream=False, timeout=10) # Swap True to False
         output = ""
+        print(response.text)
         for chunk in response.iter_lines(decode_unicode=False, delimiter=b"\0"):
             if chunk:
                 data = json.loads(chunk.decode())
