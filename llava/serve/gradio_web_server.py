@@ -238,31 +238,8 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
     yield (state, state.to_gradio_chatbot()) + (disable_btn,) * 5
   
   ## New Code without streamed text ##
-    try:
-        # Stream output
-        response = requests.post(worker_addr + "/worker_generate_stream",
-            headers=headers, json=pload, stream=True, timeout=10)
-        chunks = []
-        for chunk in response.iter_lines(decode_unicode=False, delimiter=b"\0"):
-            if chunk:
-                chunks.append(chunk.decode())
-        full_text = ''.join(chunks)
-        data = json.loads(full_text)
-        if data["error_code"] == 0:
-            output = data["text"][len(prompt):].strip()
-            state.messages[-1][-1] = output + "▌"
-            yield (state, state.to_gradio_chatbot()) + (disable_btn,) * 5
-        else:
-            output = data["text"] + f" (error_code: {data['error_code']})"
-            state.messages[-1][-1] = output
-            yield (state, state.to_gradio_chatbot()) + (disable_btn, disable_btn, disable_btn, enable_btn, enable_btn)
-            return
-        time.sleep(0.03)
-    except requests.exceptions.RequestException as e:
-        state.messages[-1][-1] = server_error_msg
-        yield (state, state.to_gradio_chatbot()) + (disable_btn, disable_btn, disable_btn, enable_btn, enable_btn)
-        return
-    '''
+
+    
     try:
         # Stream output
         response = requests.post(worker_addr + "/worker_generate_stream",
@@ -284,7 +261,7 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
         state.messages[-1][-1] = server_error_msg
         yield (state, state.to_gradio_chatbot()) + (disable_btn, disable_btn, disable_btn, enable_btn, enable_btn)
         return
-    '''
+    
     state.messages[-1][-1] = state.messages[-1][-1][:-1]
     yield (state, state.to_gradio_chatbot()) + (enable_btn,) * 5
 
