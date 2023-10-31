@@ -241,14 +241,20 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
     try:
         # Stream output
         response = requests.post(worker_addr + "/worker_generate_stream",
-            headers=headers, json=pload, stream=False, timeout=10) # Swap True to False
+            headers=headers, json=pload, stream=False, timeout=10)
         output = ""
-        print(response.text)
+        last_chunk = ""
         for chunk in response.iter_lines(decode_unicode=False, delimiter=b"\0"):
             if chunk:
                 data = json.loads(chunk.decode())
                 if data["error_code"] == 0:
-                    output += data["text"][len(prompt):].strip() + " "
+                    current_chunk = data["text"][len(prompt):].strip()
+                    # Remove the common prefix with the last chunk
+                    i = 0
+                    while i < len(current_chunk) and i < len(last_chunk) and current_chunk[i] == last_chunk[i]:
+                        i += 1
+                    output += current_chunk[i:]
+                    last_chunk = current_chunk
                 else:
                     output = data["text"] + f" (error_code: {data['error_code']})"
                     state.messages[-1][-1] = output
