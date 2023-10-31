@@ -239,29 +239,28 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
   
   ## New Code without streamed text ##
     try:
-        # Get the complete output
+        # Stream output
         response = requests.post(worker_addr + "/worker_generate_stream",
-            headers=headers, json=pload, stream=False, timeout=10)  
-        if response.status_code == 200:
-            print(response.text)
-            data = json.loads(response.text)
-            if data["error_code"] == 0:
-                output = data["text"][len(prompt):].strip()
-                state.messages[-1][-1] = output
-                yield (state, state.to_gradio_chatbot()) + (enable_btn,) * 5  # changed to enable_btn
-                return
-            else:
-                output = data["text"] + f" (error_code: {data['error_code']})"
-                state.messages[-1][-1] = output
-                yield (state, state.to_gradio_chatbot()) + (disable_btn, disable_btn, disable_btn, enable_btn, enable_btn)
-                return
+            headers=headers, json=pload, stream=True, timeout=10)
+        chunks = []
+        for chunk in response.iter_lines(decode_unicode=False, delimiter=b"\0"):
+            if chunk:
+                chunks.append(chunk.decode())
+        full_text = ''.join(chunks)
+        data = json.loads(full_text)
+        if data["error_code"] == 0:
+            output = data["text"][len(prompt):].strip()
+            state.messages[-1][-1] = output + "▌"
+            yield (state, state.to_gradio_chatbot()) + (disable_btn,) * 5
         else:
-            state.messages[-1][-1] = server_error_msg
+            output = data["text"] + f" (error_code: {data['error_code']})"
+            state.messages[-1][-1] = output
             yield (state, state.to_gradio_chatbot()) + (disable_btn, disable_btn, disable_btn, enable_btn, enable_btn)
             return
+        time.sleep(0.03)
     except requests.exceptions.RequestException as e:
         state.messages[-1][-1] = server_error_msg
-        yield (state, state.to_gradio_chatbot()) + (disable_btn, disable_btn, disable_btn, enable_btn, enable_btn) 
+        yield (state, state.to_gradio_chatbot()) + (disable_btn, disable_btn, disable_btn, enable_btn, enable_btn)
         return
     '''
     try:
