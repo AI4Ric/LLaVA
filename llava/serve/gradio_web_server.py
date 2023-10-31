@@ -337,7 +337,7 @@ block_css = """
 
 def build_demo(embed_mode):
     textbox = gr.Textbox(show_label=False, placeholder="Enter text and press ENTER", container=False)
-    with gr.Blocks(title="LLaVA", theme=gr.themes.Default(), css=block_css) as demo:
+    with gr.Blocks(title="IAIC_Chat", theme=gr.themes.Default(), css=block_css) as demo:
         state = gr.State()
 
         if not embed_mode:
