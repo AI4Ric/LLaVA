@@ -240,11 +240,15 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
   ## New Code without streamed text ##
     try:
         # Stream output
+        print("Sending request to:", worker_addr + "/worker_generate_stream")
+        print("Headers:", headers)
+        print("Payload:", pload)
         response = requests.post(worker_addr + "/worker_generate_stream",
             headers=headers, json=pload, stream=True, timeout=10)
+        print("Response Status Code:", response.status_code)
+        print("Response Text:", response.text)
         output = ""
         last_chunk = ""
-        print(response.text)
         for chunk in response.iter_lines(decode_unicode=False, delimiter=b"\0"):
             if chunk:
                 data = json.loads(chunk.decode())
