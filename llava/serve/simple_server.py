@@ -1,7 +1,13 @@
-from flask import Flask
+# simple_server_fastapi.py
 
-app = Flask(__name__)
+from fastapi import FastAPI
 
-@app.route('/')
-def hello_world():
-    return 'Hello, World!'
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=3000)
